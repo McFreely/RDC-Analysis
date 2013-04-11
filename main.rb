@@ -1,17 +1,11 @@
 # -*- coding: utf-8 -*-
-## BluePrint
-
-# Required Files and Gems
 require 'rubygems'
 require 'sinatra'
-require 'slim'
 require 'multi_json'
-# require 'httparty'
 require 'mongoid'
 require_relative 'naive_bayes.rb'
 
 Mongoid.load!("mongoid.yml")
-
 
 TWEETS =
 {:positive => [
@@ -68,11 +62,11 @@ TWEETS =
 
 
 categories = [:positive, :negative]
-classifier = NaiveBayes.new(categories)
+naive = NaiveBayes.new(categories)
 
 categories.each do |category|
   TWEETS[category].each do |tweet|
-    classifier.train(category, tweet)
+    naive.train(category, tweet)
   end
 end
 
@@ -83,22 +77,24 @@ class Movie
   field :status_analysis, type: Boolean, default: false
 end
 
-# get '/' do
-#   @movies = Movie.all
-#   slim :manage
-# end
+class Info
+  include Mongoid::Document
+  field :title, type: String
+  field :total_count, type: Integer
+  field :stat_positive, type: Integer
+  field :stat_negative, type: Integer
+end
 
 get '/' do
-  movies = Movie.all
+  movies = Movie.where(:status_analysis => false)
   movies.each do |movie|
-    @count_tweets_trained = 0
+    @count_tweets = 0
     @count_positive = 0
     @count_negative = 0
     @count_neutral = 0
-    puts "*******"
-    puts movie.mt
+
     movie.tweets.each do |tweet|
-      result = classifier.classify(tweet)
+      result = naive.classify(tweet)
       if result == :positive
         @count_positive += 1
       elsif result == :negative
@@ -106,40 +102,23 @@ get '/' do
       else
         @count_neutral += 1
       end
-      @count_tweets_trained += 1
+      @count_tweets += 1
     end
-    puts "GLOBAL RESULTS :"
-    puts @count_tweets_trained
-    puts @count_positive
-    puts @count_negative
 
-    stat_pos = (@count_positive.to_f / @count_tweets_trained.to_f) * 100
-    stat_neg = (@count_negative.to_f / @count_tweets_trained.to_f) * 100
+    stat_positive = ((@count_positive.to_f / @count_tweets.to_f) * 100).round.to_s
+    stat_negative = ((@count_negative.to_f / @count_tweets.to_f) * 100).round.to_s
 
-    puts "Positive : " + stat_pos.to_s + " %"
-    puts "Negative : " + stat_neg.to_s + " %"
+    infos = Info.new(:title => movie.mt,
+                     :total_count => @count_tweet,
+                     :stat_positive => stat_positive,
+                     :stat_negative => stat_negative)
+
+    if infos.save
+      puts "Save successful!"
+    else
+      puts "Error while saving"
+    end
+
+    movie.set(:status_analysis, true)
   end
 end
-
-# Job 1
-# Check for non-analysed Movie Documents in the
-# dashboard db
-# If a movie document is not analysed, add it to the queue
-
-# Job 2
-# For each  Movie document, iterate over the tweets and analyse each one
-# Condense results and only keep global statistics results about the movie
-# i.e.: The positive and negative percentages over all the tweets
-
-# Job 3
-# Get the other info about the movie (poster, synopsis, release year, ...)
-
-# Job 4
-# Save all the new date in the pg db "results_db"
-
-# Job 5
-# update the movie document to "analysed"
-
-
-# This script should run by itself every x days
-# When the aggregation of tweets will be automated, the script will run more
