@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 require 'rubygems'
-require 'sinatra'
 require 'multi_json'
 require 'mongoid'
 require_relative 'naive_bayes.rb'
 
-Mongoid.load!("mongoid.yml")
+Mongoid.load!("mongoid.yml", :development)
+
+# Mongoid.configure do |config|
+#   config.master = Mongo::Connection.new.db("MovieList")
+# end
+
 
 TWEETS =
 {:positive => [
@@ -85,40 +89,39 @@ class Info
   field :stat_negative, type: Integer
 end
 
-get '/' do
-  movies = Movie.where(:status_analysis => false)
-  movies.each do |movie|
-    @count_tweets = 0
-    @count_positive = 0
-    @count_negative = 0
-    @count_neutral = 0
 
-    movie.tweets.each do |tweet|
-      result = naive.classify(tweet)
-      if result == :positive
-        @count_positive += 1
-      elsif result == :negative
-        @count_negative += 1
-      else
-        @count_neutral += 1
-      end
-      @count_tweets += 1
-    end
+movies = Movie.where(:status_analysis => false)
+movies.each do |movie|
+  @count_tweets = 0
+  @count_positive = 0
+  @count_negative = 0
+  @count_neutral = 0
 
-    stat_positive = ((@count_positive.to_f / @count_tweets.to_f) * 100).round.to_s
-    stat_negative = ((@count_negative.to_f / @count_tweets.to_f) * 100).round.to_s
-
-    infos = Info.new(:title => movie.mt,
-                     :total_count => @count_tweet,
-                     :stat_positive => stat_positive,
-                     :stat_negative => stat_negative)
-
-    if infos.save
-      puts "Save successful!"
+  movie.tweets.each do |tweet|
+    result = naive.classify(tweet)
+    if result == :positive
+      @count_positive += 1
+    elsif result == :negative
+      @count_negative += 1
     else
-      puts "Error while saving"
+      @count_neutral += 1
     end
-
-    movie.set(:status_analysis, true)
+    @count_tweets += 1
   end
+
+  stat_positive = ((@count_positive.to_f / @count_tweets.to_f) * 100).round.to_s
+  stat_negative = ((@count_negative.to_f / @count_tweets.to_f) * 100).round.to_s
+
+  infos = Info.new(:title => movie.mt,
+                   :total_count => @count_tweet,
+                   :stat_positive => stat_positive,
+                   :stat_negative => stat_negative)
+
+  if infos.save
+    puts "Save successful!"
+  else
+    puts "Error while saving"
+  end
+
+  movie.set(:status_analysis, true)
 end
