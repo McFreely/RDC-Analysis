@@ -4,14 +4,11 @@ require 'multi_json'
 require 'mongoid'
 require_relative 'naive_bayes.rb'
 
+# Load the configuration file for accessing the db
+# The environment is explicit, else mongoid throw an error
 Mongoid.load!("mongoid.yml", :development)
 
-# Mongoid.configure do |config|
-#   config.master = Mongo::Connection.new.db("MovieList")
-# end
-
-
-TWEETS =
+CORPUS =
 {:positive => [
 "J'ai envie d'aller voir film",
 "j'aimerai bien voir film",
@@ -64,16 +61,19 @@ TWEETS =
 "j'irai jamais le voir"
 ]}
 
-
+# Initialise the categories for the classifier
 categories = [:positive, :negative]
+# Initialise the classifier with the previous categories
 naive = NaiveBayes.new(categories)
 
+# Train the classifier by iterating over the training corpus
 categories.each do |category|
-  TWEETS[category].each do |tweet|
+  CORPUS[category].each do |tweet|
     naive.train(category, tweet)
   end
 end
 
+# The document model for the twitter query
 class Movie
   include Mongoid::Document
   field :mt, as: :movie_title, type: String
@@ -81,22 +81,28 @@ class Movie
   field :status_analysis, type: Boolean, default: false
 end
 
-class Info
+# The document model for the results of the analysis
+class Stat
   include Mongoid::Document
-  field :title, type: String
+  field :title, type: String    # Different name to avoid confusion
   field :total_count, type: Integer
   field :stat_positive, type: Integer
   field :stat_negative, type: Integer
 end
 
-
+# Return movies document that are not analysed
 movies = Movie.where(:status_analysis => false)
+
+# Iterate over each of them
 movies.each do |movie|
+
+  # Initialise the variables for the statistics
   @count_tweets = 0
   @count_positive = 0
   @count_negative = 0
   @count_neutral = 0
 
+  # Iterates over the tweets and analyses them
   movie.tweets.each do |tweet|
     result = naive.classify(tweet)
     if result == :positive
@@ -109,19 +115,22 @@ movies.each do |movie|
     @count_tweets += 1
   end
 
+  # Return a nice readable result in the form XX%
   stat_positive = ((@count_positive.to_f / @count_tweets.to_f) * 100).round.to_s
   stat_negative = ((@count_negative.to_f / @count_tweets.to_f) * 100).round.to_s
 
-  infos = Info.new(:title => movie.mt,
+  # Initialise a new Stat document for saving the results of the analysis
+  stats = Stat.new(:title => movie.mt,
                    :total_count => @count_tweet,
                    :stat_positive => stat_positive,
                    :stat_negative => stat_negative)
 
-  if infos.save
-    puts "Save successful!"
+  if stats.save
+    puts "Save successful for " + movie.mt + "!"
   else
     puts "Error while saving"
   end
 
+  # Update the status of the Movie document
   movie.set(:status_analysis, true)
 end
