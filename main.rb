@@ -121,7 +121,7 @@ movies.each do |movie|
 
   # Initialise a new Stat document for saving the results of the analysis
   stats = Stat.new(:title => movie.mt,
-                   :total_count => @count_tweet,
+                   :total_count => @count_tweets,
                    :stat_positive => stat_positive,
                    :stat_negative => stat_negative)
 
