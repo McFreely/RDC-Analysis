@@ -88,6 +88,12 @@ class Stat
   field :total_count, type: Integer
   field :stat_positive, type: Integer
   field :stat_negative, type: Integer
+  field :movie_poster, type: String
+  field :trailer, type: String
+  field :release_date, type: String, default: '2013'
+  field :director, type: String
+  field :runtime, type: String
+  field :plot, type: String
 end
 
 # Return movies document that are not analysed
