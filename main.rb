@@ -2,7 +2,9 @@
 require 'rubygems'
 require 'multi_json'
 require 'mongoid'
+require 'httparty'
 require_relative 'naive_bayes.rb'
+# require_relative 'rottent.rb'
 
 # Load the configuration file for accessing the db
 # The environment is explicit, else mongoid throw an error
@@ -124,12 +126,35 @@ movies.each do |movie|
   # Return a nice readable result in the form XX%
   stat_positive = ((@count_positive.to_f / @count_tweets.to_f) * 100).round.to_s
   stat_negative = ((@count_negative.to_f / @count_tweets.to_f) * 100).round.to_s
-
+  
   # Initialise a new Stat document for saving the results of the analysis
   stats = Stat.new(:title => movie.mt,
                    :total_count => @count_tweets,
                    :stat_positive => stat_positive,
                    :stat_negative => stat_negative)
+  
+  # Rottenization of the movie infos
+  # To Do With IMDB API, which is more complete, this is just a test
+  # And highly suseptible to changes
+  # This is bad ugly placeholder code not intended to stay 
+  # more than a few days
+  
+  mt = movie.mt
+  options = {:query => {:apikey => :rnbrbgqv7teq8fvkz2ppk857,
+      :q => mt,
+      :page_limit => 1,
+      :page => 1}}
+  
+  response = HTTParty.get("http://api.rottentomatoes.com/api/public/v1.0/movies.json", options)
+  arr = JSON.parse(response.body)['movies']
+  infos = Hash[*arr]
+  
+  poster = infos['posters']['profile']
+  release = infos['release_dates']['theater']
+  runtime = infos['runtime']
+  stats.set(:movie_poster, poster)
+  stats.set(:release_date, release)
+  stats.set(:runtime, runtime)
 
   if stats.save
     puts "Save successful for " + movie.mt + "!"
