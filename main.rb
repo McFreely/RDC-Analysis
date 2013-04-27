@@ -94,7 +94,7 @@ class Stat
   field :trailer, type: String
   field :release_date, type: String, default: '2013'
   field :director, type: String
-  field :runtime, type: String
+  field :runtime, type: String, default: 'not available'
   field :plot, type: String
 end
 
@@ -140,21 +140,31 @@ movies.each do |movie|
   # more than a few days
   
   mt = movie.mt
-  options = {:query => {:apikey => :rnbrbgqv7teq8fvkz2ppk857,
-      :q => mt,
-      :page_limit => 1,
-      :page => 1}}
+  options = {:query => {:t => mt,
+                        :r => 'JSON',
+                        :plot => 'full',
+                        }}
   
-  response = HTTParty.get("http://api.rottentomatoes.com/api/public/v1.0/movies.json", options)
-  arr = JSON.parse(response.body)['movies']
-  infos = Hash[*arr]
+  response = HTTParty.get("http://omdbapi.com", options)
+  results = JSON.parse(response.body)
   
-  poster = infos['posters']['profile']
-  release = infos['release_dates']['theater']
-  runtime = infos['runtime']
-  stats.set(:movie_poster, poster)
-  stats.set(:release_date, release)
-  stats.set(:runtime, runtime)
+  if results['Poster'] == "N/A"
+    poster = "/img/poster_default.gif"
+    stats.set(:movie_poster, poster)
+  elsif results 
+    poster = results['Poster']
+    release = results['Released']
+    director = results['Director']
+    runtime = results['Runtime']
+    plot = results['Plot']
+    stats.set(:movie_poster, poster)
+    stats.set(:release_date, release)
+    stats.set(:runtime, runtime)
+    stats.set(:director, director)
+    stats.set(:plot, plot)
+  else
+    puts "No Infos for " + movie.mt + ", continuing..."
+  end
 
   if stats.save
     puts "Save successful for " + movie.mt + "!"
