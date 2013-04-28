@@ -157,6 +157,7 @@ movies.each do |movie|
     director = results['Director']
     runtime = results['Runtime']
     plot = results['Plot']
+    
     stats.set(:movie_poster, poster)
     stats.set(:release_date, release)
     stats.set(:runtime, runtime)
