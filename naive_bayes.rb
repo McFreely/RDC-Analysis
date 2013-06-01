@@ -15,6 +15,8 @@ class NaiveBayes
     end
   end
 
+
+
   # Train the classifier given a tweet
   def train(category, tweet)
     word_count(tweet).each do |word, count|
@@ -25,6 +27,15 @@ class NaiveBayes
     end
     @categories_trained_tweets[category] += 1
     @total_trained_tweets += 1
+  end
+
+  # Helper for reading and training the corpus files
+  def corpus_train(categ_name)
+    category = File.new("#{categ_name}.txt", 'r')
+    while tweet = category.gets
+      train("#{categ_name}", tweet)
+    end
+    category.close
   end
 
   # Return a Hash containing the probability for each category
